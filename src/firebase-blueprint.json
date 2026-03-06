@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and balance information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "balance": { "type": "number" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "email", "balance", "role"]
+    },
+    "Tournament": {
+      "title": "Tournament",
+      "description": "Tournament details and participants",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "game": { "type": "string" },
+        "fee": { "type": "number" },
+        "prize": { "type": "number" },
+        "slots": { "type": "number" },
+        "time": { "type": "string" },
+        "status": { "type": "string", "enum": ["upcoming", "live", "completed"] },
+        "joined": { "type": "array", "items": { "type": "string" } },
+        "roomId": { "type": "string" },
+        "roomPass": { "type": "string" },
+        "results": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["title", "game", "fee", "prize", "slots", "time", "status", "joined"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Deposit, withdrawal, and prize transactions",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "withdrawal", "prize", "entry"] },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "type", "amount", "status", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/tournaments/{id}": { "schema": "Tournament", "description": "Tournament listings" },
+    "/transactions/{id}": { "schema": "Transaction", "description": "Financial transactions" }
+  }
+}

@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - username: string (required)
+    //   - email: string (required)
+    //   - balance: number (required)
+    //   - role: string (required, enum: ['user', 'admin'])
+    //   - createdAt: string (optional)
+    //
+    // Collection: tournaments
+    // Document ID: {id}
+    // Fields:
+    //   - title: string (required)
+    //   - game: string (required)
+    //   - fee: number (required)
+    //   - prize: number (required)
+    //   - slots: number (required)
+    //   - time: string (required)
+    //   - status: string (required, enum: ['upcoming', 'live', 'completed'])
+    //   - joined: list (required)
+    //   - roomId: string (optional)
+    //   - roomPass: string (optional)
+    //   - results: list (optional)
+    //
+    // Collection: transactions
+    // Document ID: {id}
+    // Fields:
+    //   - uid: string (required)
+    //   - type: string (required, enum: ['deposit', 'withdrawal', 'prize', 'entry'])
+    //   - amount: number (required)
+    //   - status: string (required, enum: ['pending', 'completed', 'failed'])
+    //   - timestamp: string (required)
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "webloom.in00@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'username', 'email', 'balance', 'role']) &&
+             data.uid is string && data.username is string && data.username.size() > 0 &&
+             data.email is string && data.balance is number &&
+             data.role in ['user', 'admin'];
+    }
+
+    function isValidTournament(data) {
+      return data.keys().hasAll(['title', 'game', 'fee', 'prize', 'slots', 'time', 'status', 'joined']) &&
+             data.title is string && data.game is string && data.fee is number &&
+             data.prize is number && data.slots is number && data.time is string &&
+             data.status in ['upcoming', 'live', 'completed'] && data.joined is list;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['uid', 'type', 'amount', 'status', 'timestamp']) &&
+             data.uid is string && data.type in ['deposit', 'withdrawal', 'prize', 'entry'] &&
+             data.amount is number && data.status in ['pending', 'completed', 'failed'] &&
+             data.timestamp is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if isAuthenticated() && (isAdmin() || (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role && request.resource.data.balance == resource.data.balance));
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidTournament(request.resource.data);
+      allow update: if isAdmin() || (isAuthenticated() && isValidTournament(request.resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joined']));
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.uid) && isValidTransaction(request.resource.data);
+      allow update: if isAdmin();
+    }
+  }
+}
