@@ -111,7 +111,7 @@ export default function App() {
 
   // Real-time Data Sync
   useEffect(() => {
-    // Sync Tournaments
+    // Sync Tournaments - Publicly readable
     const unsubT = onSnapshot(collection(db, 'tournaments'), (snap) => {
       const list: Tournament[] = [];
       snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Tournament));
@@ -120,7 +120,16 @@ export default function App() {
       handleFirestoreError(err, OperationType.LIST, 'tournaments');
     });
 
-    // Sync Players (Admin only or limited for leaderboard)
+    return () => unsubT();
+  }, []);
+
+  // Sync Players - Admin only
+  useEffect(() => {
+    if (user?.role !== 'admin') {
+      setPlayers([]);
+      return;
+    }
+
     const unsubP = onSnapshot(collection(db, 'users'), (snap) => {
       const list: Player[] = [];
       snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Player));
@@ -129,11 +138,8 @@ export default function App() {
       handleFirestoreError(err, OperationType.LIST, 'users');
     });
 
-    return () => {
-      unsubT();
-      unsubP();
-    };
-  }, []);
+    return () => unsubP();
+  }, [user]);
 
   // Sync Transactions for current user
   useEffect(() => {
@@ -141,7 +147,7 @@ export default function App() {
       setTransactions([]);
       return;
     }
-    const q = query(collection(db, 'transactions'), where('userId', '==', user.id), orderBy('timestamp', 'desc'));
+    const q = query(collection(db, 'transactions'), where('uid', '==', user.id), orderBy('timestamp', 'desc'));
     const unsubTx = onSnapshot(q, (snap) => {
       const list: Transaction[] = [];
       snap.forEach(doc => {
@@ -243,13 +249,13 @@ export default function App() {
       toast('info', 'Already registered');
       return;
     }
-    if (wallet < t.entryFee) {
+    if (wallet < t.fee) {
       toast('err', 'Insufficient balance');
       return;
     }
     
     try {
-      const newBalance = wallet - t.entryFee;
+      const newBalance = wallet - t.fee;
       const userPath = `users/${user.id}`;
       const tournamentPath = `tournaments/${id}`;
       const transactionPath = 'transactions';
@@ -276,10 +282,10 @@ export default function App() {
       try {
         // Add Transaction
         await addDoc(collection(db, 'transactions'), {
-          userId: user.id,
-          type: 'debit',
-          title: 'Entry — ' + t.name,
-          amount: t.entryFee,
+          uid: user.id,
+          type: 'entry',
+          title: 'Entry — ' + t.title,
+          amount: t.fee,
           status: 'completed',
           icon: '🎯',
           timestamp: serverTimestamp()
@@ -288,7 +294,7 @@ export default function App() {
         handleFirestoreError(e, OperationType.CREATE, transactionPath);
       }
       
-      toast('ok', `Registered for ${t.name}!`);
+      toast('ok', `Registered for ${t.title}!`);
     } catch (err: any) {
       toast('err', 'Failed to join tournament');
     }
@@ -307,8 +313,8 @@ export default function App() {
     
     try {
       await addDoc(collection(db, 'transactions'), {
-        userId: user!.id,
-        type: 'credit',
+        uid: user!.id,
+        type: 'deposit',
         title: 'Deposit Request',
         amount: amt,
         status: 'pending',
@@ -345,8 +351,8 @@ export default function App() {
       const newBalance = wallet - amt;
       await updateDoc(doc(db, 'users', user!.id), { wallet: newBalance });
       await addDoc(collection(db, 'transactions'), {
-        userId: user!.id,
-        type: 'debit',
+        uid: user!.id,
+        type: 'withdrawal',
         title: 'Withdrawal Request',
         amount: amt,
         status: 'pending',
@@ -377,15 +383,14 @@ export default function App() {
   const handleCreateTournament = async (data: any) => {
     try {
       await addDoc(collection(db, 'tournaments'), {
-        name: data.name,
+        title: data.name,
         game: data.game,
-        entryFee: data.entryFee,
-        prizePool: data.p1 + data.p2 + data.p3,
-        maxPlayers: data.maxPlayers,
+        fee: data.entryFee,
+        prize: data.p1 + data.p2 + data.p3,
+        slots: data.maxPlayers,
         joined: [],
         status: data.status,
-        startDate: data.date,
-        startTime: data.time,
+        time: `${data.date} ${data.time}`,
         prize1: data.p1,
         prize2: data.p2,
         prize3: data.p3,
@@ -431,10 +436,10 @@ export default function App() {
             });
             
             await addDoc(collection(db, 'transactions'), {
-              userId: p.id,
-              title: `Prize: ${t.name} (${idx + 1}st)`,
+              uid: p.id,
+              title: `Prize: ${t.title} (${idx + 1}st)`,
               amount: prize,
-              type: 'credit',
+              type: 'prize',
               status: 'completed',
               icon: '🏆',
               timestamp: serverTimestamp()
@@ -462,8 +467,8 @@ export default function App() {
     if (!tx) return;
 
     try {
-      if (tx.type === 'credit' && tx.status === 'pending') {
-        const p = players.find(x => x.id === tx.userId);
+      if (tx.type === 'deposit' && tx.status === 'pending') {
+        const p = players.find(x => x.id === tx.uid);
         if (p) {
           await updateDoc(doc(db, 'users', p.id), { wallet: p.wallet + tx.amount });
         }

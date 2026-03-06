@@ -41,8 +41,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ wallet, transactions, on
                 <div className="txn-t">{tx.title}</div>
                 <div className="txn-d">{tx.time}</div>
               </div>
-              <div className={`txn-a ${tx.type === 'credit' ? 'cr' : 'dr'}`}>
-                {tx.type === 'credit' ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN')}
+              <div className={`txn-a ${tx.type === 'deposit' || tx.type === 'prize' ? 'cr' : 'dr'}`}>
+                {tx.type === 'deposit' || tx.type === 'prize' ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN')}
               </div>
             </div>
           ))

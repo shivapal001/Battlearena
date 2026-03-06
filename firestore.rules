@@ -7,36 +7,36 @@ service cloud.firestore {
     // Collection: users
     // Document ID: {uid}
     // Fields:
-    //   - uid: string (required)
-    //   - username: string (required)
-    //   - email: string (required)
-    //   - balance: number (required)
+    //   - uid: string (required, size < 128)
+    //   - username: string (required, size < 50)
+    //   - email: string (required, size < 100)
+    //   - balance: number (required, >= 0)
     //   - role: string (required, enum: ['user', 'admin'])
-    //   - createdAt: string (optional)
+    //   - createdAt: string (optional, ISO 8601)
     //
     // Collection: tournaments
     // Document ID: {id}
     // Fields:
-    //   - title: string (required)
-    //   - game: string (required)
-    //   - fee: number (required)
-    //   - prize: number (required)
-    //   - slots: number (required)
-    //   - time: string (required)
+    //   - title: string (required, size < 100)
+    //   - game: string (required, size < 50)
+    //   - fee: number (required, >= 0)
+    //   - prize: number (required, >= 0)
+    //   - slots: number (required, > 0)
+    //   - time: string (required, size < 100)
     //   - status: string (required, enum: ['upcoming', 'live', 'completed'])
-    //   - joined: list (required)
-    //   - roomId: string (optional)
-    //   - roomPass: string (optional)
+    //   - joined: list (required, size < 1000)
+    //   - roomId: string (optional, size < 50)
+    //   - roomPass: string (optional, size < 50)
     //   - results: list (optional)
     //
     // Collection: transactions
     // Document ID: {id}
     // Fields:
-    //   - uid: string (required)
+    //   - uid: string (required, size < 128)
     //   - type: string (required, enum: ['deposit', 'withdrawal', 'prize', 'entry'])
-    //   - amount: number (required)
+    //   - amount: number (required, > 0)
     //   - status: string (required, enum: ['pending', 'completed', 'failed'])
-    //   - timestamp: string (required)
+    //   - timestamp: string (required, ISO 8601)
     // ===============================================================
 
     // ===============================================================
@@ -56,24 +56,37 @@ service cloud.firestore {
          (request.auth.token.email == "webloom.in00@gmail.com" && request.auth.token.email_verified == true));
     }
 
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
     function isValidUser(data) {
       return data.keys().hasAll(['uid', 'username', 'email', 'balance', 'role']) &&
-             data.uid is string && data.username is string && data.username.size() > 0 &&
-             data.email is string && data.balance is number &&
+             data.uid is string && data.uid.size() < 128 &&
+             data.username is string && data.username.size() > 0 && data.username.size() < 50 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.balance is number && data.balance >= 0 &&
              data.role in ['user', 'admin'];
     }
 
     function isValidTournament(data) {
       return data.keys().hasAll(['title', 'game', 'fee', 'prize', 'slots', 'time', 'status', 'joined']) &&
-             data.title is string && data.game is string && data.fee is number &&
-             data.prize is number && data.slots is number && data.time is string &&
-             data.status in ['upcoming', 'live', 'completed'] && data.joined is list;
+             data.title is string && data.title.size() < 100 &&
+             data.game is string && data.game.size() < 50 &&
+             data.fee is number && data.fee >= 0 &&
+             data.prize is number && data.prize >= 0 &&
+             data.slots is number && data.slots > 0 &&
+             data.time is string && data.time.size() < 100 &&
+             data.status in ['upcoming', 'live', 'completed'] &&
+             data.joined is list && data.joined.size() < 1000;
     }
 
     function isValidTransaction(data) {
       return data.keys().hasAll(['uid', 'type', 'amount', 'status', 'timestamp']) &&
-             data.uid is string && data.type in ['deposit', 'withdrawal', 'prize', 'entry'] &&
-             data.amount is number && data.status in ['pending', 'completed', 'failed'] &&
+             data.uid is string && data.uid.size() < 128 &&
+             data.type in ['deposit', 'withdrawal', 'prize', 'entry'] &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['pending', 'completed', 'failed'] &&
              data.timestamp is string;
     }
 
@@ -82,15 +95,30 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
+      // Strictly limit read access to owner or admin to protect PII (email, balance)
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
-      allow update: if isAuthenticated() && (isAdmin() || (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role && request.resource.data.balance == resource.data.balance));
+      
+      allow create: if isAuthenticated() && isOwner(userId) && 
+                      isValidUser(request.resource.data) && 
+                      request.resource.data.role == 'user' &&
+                      request.resource.data.balance == 0;
+                      
+      allow update: if isAuthenticated() && (
+                      isAdmin() || 
+                      (isOwner(userId) && 
+                       isValidUser(request.resource.data) && 
+                       request.resource.data.role == resource.data.role && 
+                       request.resource.data.balance == resource.data.balance)
+                    );
     }
 
     match /tournaments/{tournamentId} {
       allow read: if true;
       allow create: if isAdmin() && isValidTournament(request.resource.data);
-      allow update: if isAdmin() || (isAuthenticated() && isValidTournament(request.resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joined']));
+      allow update: if isAdmin() || 
+                      (isAuthenticated() && 
+                       isValidTournament(request.resource.data) && 
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joined']));
       allow delete: if isAdmin();
     }
 

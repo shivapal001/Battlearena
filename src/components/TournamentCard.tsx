@@ -9,8 +9,8 @@ interface TournamentCardProps {
 }
 
 export const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isJoined, onJoin, onView }) => {
-  const pct = Math.round((tournament.joined.length / tournament.maxPlayers) * 100);
-  const full = tournament.joined.length >= tournament.maxPlayers;
+  const pct = Math.round((tournament.joined.length / tournament.slots) * 100);
+  const full = tournament.joined.length >= tournament.slots;
   
   const gameEmoji: Record<string, string> = {
     'Free Fire': '🎯',
@@ -38,7 +38,7 @@ export const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isJo
     if (tournament.status === 'completed') return { className: 'tc-btn disabled', label: 'ENDED', disabled: true };
     if (isJoined) return { className: 'tc-btn joined', label: '✓ REGISTERED', disabled: true };
     if (full) return { className: 'tc-btn disabled', label: 'FULL', disabled: true };
-    return { className: 'tc-btn joinable', label: `JOIN — ₹${tournament.entryFee}`, disabled: false };
+    return { className: 'tc-btn joinable', label: `JOIN — ₹${tournament.fee}`, disabled: false };
   };
 
   const btn = getButtonProps();
@@ -50,14 +50,14 @@ export const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isJo
         <div className={`tc-st ${getStatusClass()}`}>{getStatusLabel()}</div>
       </div>
       <div className="tc-body">
-        <div className="tc-name">{tournament.name}</div>
+        <div className="tc-name">{tournament.title}</div>
         <div className="tc-grid">
-          <div><div className="tc-sl">Entry</div><div className="tc-sv">{tournament.entryFee === 0 ? 'FREE' : `₹${tournament.entryFee}`}</div></div>
-          <div><div className="tc-sl">Prize Pool</div><div className="tc-sv gold">₹{tournament.prizePool.toLocaleString('en-IN')}</div></div>
-          <div><div className="tc-sl">Time</div><div className="tc-sv">{tournament.startTime}</div></div>
-          <div><div className="tc-sl">Date</div><div className="tc-sv">{tournament.startDate}</div></div>
+          <div><div className="tc-sl">Entry</div><div className="tc-sv">{tournament.fee === 0 ? 'FREE' : `₹${tournament.fee}`}</div></div>
+          <div><div className="tc-sl">Prize Pool</div><div className="tc-sv gold">₹{tournament.prize.toLocaleString('en-IN')}</div></div>
+          <div><div className="tc-sl">Time</div><div className="tc-sv">{tournament.time}</div></div>
+          <div><div className="tc-sl">Slots</div><div className="tc-sv">{tournament.slots}</div></div>
         </div>
-        <div className="tc-slots">{tournament.joined.length}/{tournament.maxPlayers} PLAYERS</div>
+        <div className="tc-slots">{tournament.joined.length}/{tournament.slots} PLAYERS</div>
         <div className="tc-bar"><div className={`tc-bar-f ${pct > 90 ? 'd' : 'n'}`} style={{ width: `${pct}%` }}></div></div>
         <button 
           className={btn.className} 

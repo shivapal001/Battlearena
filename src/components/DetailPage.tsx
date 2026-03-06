@@ -9,8 +9,8 @@ interface DetailPageProps {
 }
 
 export const DetailPage: React.FC<DetailPageProps> = ({ tournament, isJoined, onBack, onJoin }) => {
-  const full = tournament.joined.length >= tournament.maxPlayers;
-  const pct = Math.round((tournament.joined.length / tournament.maxPlayers) * 100);
+  const full = tournament.joined.length >= tournament.slots;
+  const pct = Math.round((tournament.joined.length / tournament.slots) * 100);
   const emoji = tournament.game === 'Free Fire' ? '🎯' : tournament.game === 'Ludo' ? '🎲' : tournament.game === 'Carrom' ? '🎱' : tournament.game === 'Quiz' ? '🧠' : '🎮';
   const statusColor = tournament.status === 'live' ? 'var(--red)' : tournament.status === 'completed' ? 'var(--gold)' : 'var(--wh)';
 
@@ -25,20 +25,20 @@ export const DetailPage: React.FC<DetailPageProps> = ({ tournament, isJoined, on
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '11px', marginBottom: '22px' }}>
           <div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9px', color: 'var(--mt2)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '7px' }}>{emoji} {tournament.game}</div>
-            <div style={{ fontFamily: "'Anton', sans-serif", fontSize: '32px', letterSpacing: '2px', color: 'var(--wh)', lineHeight: 1 }}>{tournament.name}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10px', color: 'var(--dim3)', marginTop: '7px' }}>📅 {tournament.startDate} · ⏰ {tournament.startTime}</div>
+            <div style={{ fontFamily: "'Anton', sans-serif", fontSize: '32px', letterSpacing: '2px', color: 'var(--wh)', lineHeight: 1 }}>{tournament.title}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10px', color: 'var(--dim3)', marginTop: '7px' }}>📅 {tournament.time}</div>
           </div>
           <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10px', fontWeight: 700, color: statusColor, letterSpacing: '2px', padding: '7px 12px', border: `1px solid ${statusColor}40`, textTransform: 'uppercase' }}>{tournament.status.toUpperCase()}</span>
         </div>
         <div className="tc-bar" style={{ height: '3px', marginBottom: '7px' }}><div className={`tc-bar-f ${pct > 90 ? 'd' : 'n'}`} style={{ width: `${pct}%` }}></div></div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'IBM Plex Mono', monospace", fontSize: '9px', color: 'var(--dim3)' }}>{tournament.joined.length} joined &nbsp;·&nbsp; {tournament.maxPlayers - tournament.joined.length} slots left</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'IBM Plex Mono', monospace", fontSize: '9px', color: 'var(--dim3)' }}>{tournament.joined.length} joined &nbsp;·&nbsp; {tournament.slots - tournament.joined.length} slots left</div>
       </div>
       
       <div className="dstats" style={{ marginBottom: '2px' }}>
         {[
-          ['ENTRY FEE', tournament.entryFee === 0 ? 'FREE' : `₹${tournament.entryFee}`],
-          ['PRIZE POOL', `₹${tournament.prizePool.toLocaleString('en-IN')}`],
-          ['PLAYERS', `${tournament.joined.length}/${tournament.maxPlayers}`],
+          ['ENTRY FEE', tournament.fee === 0 ? 'FREE' : `₹${tournament.fee}`],
+          ['PRIZE POOL', `₹${tournament.prize.toLocaleString('en-IN')}`],
+          ['PLAYERS', `${tournament.joined.length}/${tournament.slots}`],
           ['FORMAT', 'BATTLE ROYALE']
         ].map(([l, v]) => (
           <div key={l} className="dstat">
@@ -92,7 +92,7 @@ export const DetailPage: React.FC<DetailPageProps> = ({ tournament, isJoined, on
         ) : full ? (
           <button className="btn btn-gh" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>FULL</button>
         ) : (
-          <button className="btn btn-red" onClick={() => onJoin(tournament.id)}>JOIN TOURNAMENT — ₹{tournament.entryFee}</button>
+          <button className="btn btn-red" onClick={() => onJoin(tournament.id)}>JOIN TOURNAMENT — ₹{tournament.fee}</button>
         )}
       </div>
 

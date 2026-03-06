@@ -22,17 +22,16 @@ export interface TournamentResult {
 
 export interface Tournament {
   id: string;
-  name: string;
+  title: string;
   game: string;
-  entryFee: number;
-  maxPlayers: number;
+  fee: number;
+  slots: number;
   joined: string[];
-  prizePool: number;
+  prize: number;
   prize1: number;
   prize2: number;
   prize3: number;
-  startTime: string;
-  startDate: string;
+  time: string;
   status: 'upcoming' | 'live' | 'completed';
   roomId: string;
   roomPass: string;
@@ -50,15 +49,15 @@ export interface LeaderboardEntry {
 
 export interface Transaction {
   id: string;
-  type: 'credit' | 'debit';
+  type: 'deposit' | 'withdrawal' | 'prize' | 'entry';
   title: string;
   amount: number;
   time: string;
   icon: string;
-  status: 'pending' | 'completed' | 'rejected';
+  status: 'pending' | 'completed' | 'failed';
   upi?: string;
   utr?: string;
-  userId: string;
+  uid: string;
 }
 
 export type Page = 'landing' | 'home' | 'tournaments' | 'detail' | 'leaderboard' | 'wallet' | 'profile' | 'admin';

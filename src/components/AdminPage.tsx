@@ -44,10 +44,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   // Results Edit State
   const [editingResults, setEditingResults] = useState<any>(null);
 
-  const revenue = transactions.filter(tx => tx.type === 'credit' && tx.status === 'completed').reduce((s, tx) => s + tx.amount, 0);
+  const revenue = transactions.filter(tx => tx.type === 'deposit' && tx.status === 'completed').reduce((s, tx) => s + tx.amount, 0);
   const totalWinnings = transactions.filter(tx => tx.title.includes('Prize')).reduce((s, tx) => s + tx.amount, 0);
-  const pendingWd = transactions.filter(tx => tx.type === 'debit' && tx.status === 'pending').length;
-  const pendingDp = transactions.filter(tx => tx.type === 'credit' && tx.status === 'pending').length;
+  const pendingWd = transactions.filter(tx => tx.type === 'withdrawal' && tx.status === 'pending').length;
+  const pendingDp = transactions.filter(tx => tx.type === 'deposit' && tx.status === 'pending').length;
 
   const handleCreate = () => {
     if (!newT.name || !newT.date || !newT.time) return;
@@ -160,8 +160,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                           <div className="adm-list-name">{tx.title}</div>
                           <div className="adm-list-sub">{tx.time}</div>
                         </div>
-                        <div className={`adm-list-val ${tx.type === 'credit' ? 'txt-g' : 'txt-r'}`}>
-                          {tx.type === 'credit' ? '+' : '-'}₹{tx.amount}
+                        <div className={`adm-list-val ${tx.type === 'deposit' ? 'txt-g' : 'txt-r'}`}>
+                          {tx.type === 'deposit' ? '+' : '-'}₹{tx.amount}
                         </div>
                       </div>
                     ))}
@@ -210,10 +210,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   <tbody>
                     {tournaments.map(t => (
                       <tr key={t.id}>
-                        <td style={{ fontFamily: "'Anton', sans-serif", fontSize: '14px', letterSpacing: '.5px' }}>{t.name}</td>
+                        <td style={{ fontFamily: "'Anton', sans-serif", fontSize: '14px', letterSpacing: '.5px' }}>{t.title}</td>
                         <td style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10px' }}>{t.game}</td>
-                        <td style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px' }}>{t.joined.length}/{t.maxPlayers}</td>
-                        <td style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px' }}>₹{t.entryFee}</td>
+                        <td style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px' }}>{t.joined.length}/{t.slots}</td>
+                        <td style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px' }}>₹{t.fee}</td>
                         <td><span className={`badge ${t.status === 'live' ? 'badge-r' : t.status === 'completed' ? 'badge-gold' : 'badge-gr'}`}>{t.status}</span></td>
                         <td style={{ display: 'flex', gap: '2px', flexWrap: 'wrap' }}>
                           <button className="btn btn-gh btn-sm" onClick={() => setEditingRoom(t)}>ROOM</button>
@@ -267,16 +267,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   <tbody>
                     {transactions
                       .filter(tx => {
-                        if (activeTab === 'withdrawals') return tx.type === 'debit' && tx.status === 'pending';
-                        if (activeTab === 'deposits') return tx.type === 'credit' && tx.status === 'pending';
+                        if (activeTab === 'withdrawals') return tx.type === 'withdrawal' && tx.status === 'pending';
+                        if (activeTab === 'deposits') return tx.type === 'deposit' && tx.status === 'pending';
                         if (activeTab === 'history') return tx.status === 'completed';
                         return true;
                       })
                       .map(tx => {
-                        const p = players.find(x => x.id === tx.userId);
+                        const p = players.find(x => x.id === tx.uid);
                         return (
                           <tr key={tx.id}>
-                            <td><span className={`badge ${tx.type === 'credit' ? 'badge-g' : 'badge-r'}`}>{tx.type.toUpperCase()}</span></td>
+                            <td><span className={`badge ${tx.type === 'deposit' ? 'badge-g' : 'badge-r'}`}>{tx.type.toUpperCase()}</span></td>
                             <td style={{ fontFamily: "'Anton', sans-serif", fontSize: '13px' }}>{p?.username || 'Unknown'}</td>
                             <td style={{ fontSize: '12px' }}>{tx.title}</td>
                             <td style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10px', color: 'var(--gold)' }}>
@@ -284,8 +284,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                               {tx.utr && <div>UTR: {tx.utr}</div>}
                               {!tx.upi && !tx.utr && <span style={{ color: 'var(--dim3)' }}>—</span>}
                             </td>
-                            <td style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', color: tx.type === 'credit' ? '#22c55e' : 'var(--red)' }}>
-                              {tx.type === 'credit' ? '+' : '-'}₹{tx.amount}
+                            <td style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '19px', color: tx.type === 'deposit' ? '#22c55e' : 'var(--red)' }}>
+                              {tx.type === 'deposit' ? '+' : '-'}₹{tx.amount}
                             </td>
                             <td>
                               {tx.status === 'pending' ? (
