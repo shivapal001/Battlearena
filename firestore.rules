@@ -7,12 +7,12 @@ service cloud.firestore {
     // Collection: users
     // Document ID: {uid}
     // Fields:
-    //   - uid: string (required, size < 128)
+    //   - id: string (required, size < 128)
     //   - username: string (required, size < 50)
     //   - email: string (required, size < 100)
-    //   - balance: number (required, >= 0)
+    //   - wallet: number (required, >= 0)
     //   - role: string (required, enum: ['user', 'admin'])
-    //   - createdAt: string (optional, ISO 8601)
+    //   - joined: list (required)
     //
     // Collection: tournaments
     // Document ID: {id}
@@ -36,7 +36,7 @@ service cloud.firestore {
     //   - type: string (required, enum: ['deposit', 'withdrawal', 'prize', 'entry'])
     //   - amount: number (required, > 0)
     //   - status: string (required, enum: ['pending', 'completed', 'failed'])
-    //   - timestamp: string (required, ISO 8601)
+    //   - timestamp: timestamp (required)
     // ===============================================================
 
     // ===============================================================
@@ -61,12 +61,13 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'username', 'email', 'balance', 'role']) &&
-             data.uid is string && data.uid.size() < 128 &&
+      return data.keys().hasAll(['id', 'username', 'email', 'wallet', 'role', 'joined']) &&
+             data.id is string && data.id.size() < 128 &&
              data.username is string && data.username.size() > 0 && data.username.size() < 50 &&
              data.email is string && isValidEmail(data.email) &&
-             data.balance is number && data.balance >= 0 &&
-             data.role in ['user', 'admin'];
+             data.wallet is number && data.wallet >= 0 &&
+             data.role in ['user', 'admin'] &&
+             data.joined is list;
     }
 
     function isValidTournament(data) {
@@ -87,7 +88,7 @@ service cloud.firestore {
              data.type in ['deposit', 'withdrawal', 'prize', 'entry'] &&
              data.amount is number && data.amount > 0 &&
              data.status in ['pending', 'completed', 'failed'] &&
-             data.timestamp is string;
+             data.timestamp is timestamp;
     }
 
     // ===============================================================
@@ -95,20 +96,20 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      // Strictly limit read access to owner or admin to protect PII (email, balance)
+      // Strictly limit read access to owner or admin to protect PII (email, wallet)
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
       
       allow create: if isAuthenticated() && isOwner(userId) && 
                       isValidUser(request.resource.data) && 
                       request.resource.data.role == 'user' &&
-                      request.resource.data.balance == 0;
+                      request.resource.data.wallet == 0;
                       
       allow update: if isAuthenticated() && (
                       isAdmin() || 
                       (isOwner(userId) && 
                        isValidUser(request.resource.data) && 
                        request.resource.data.role == resource.data.role && 
-                       request.resource.data.balance == resource.data.balance)
+                       request.resource.data.wallet == resource.data.wallet)
                     );
     }
 

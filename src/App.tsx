@@ -50,8 +50,18 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   const toast = useCallback((type: 'ok' | 'err' | 'info', msg: string) => {
+    let finalMsg = msg;
+    try {
+      // If msg is a JSON string from handleFirestoreError, parse it
+      if (msg.startsWith('{') && msg.endsWith('}')) {
+        const parsed = JSON.parse(msg);
+        if (parsed.error) finalMsg = parsed.error;
+      }
+    } catch (e) {
+      // Not JSON, keep original
+    }
     const id = Date.now();
-    setToasts(prev => [...prev, { id, type, msg }]);
+    setToasts(prev => [...prev, { id, type, msg: finalMsg }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
@@ -86,28 +96,36 @@ export default function App() {
   // Firebase Auth Listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        // Fetch user data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as Player;
-          setUser(userData);
-          setWallet(userData.wallet);
-          if (page === 'landing') setPage('home');
+      try {
+        if (fbUser) {
+          // Fetch user data from Firestore
+          const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as Player;
+            setUser(userData);
+            setWallet(userData.wallet);
+            if (page === 'landing') setPage('home');
+          } else {
+            // Handle case where auth exists but doc doesn't
+            console.warn("User profile missing in Firestore for UID:", fbUser.uid);
+            setUser(null);
+            setWallet(0);
+            toast('err', 'User profile not found. Please register again.');
+          }
         } else {
-          // Handle case where auth exists but doc doesn't (shouldn't happen with proper registration)
           setUser(null);
           setWallet(0);
+          setPage('landing');
         }
-      } else {
-        setUser(null);
-        setWallet(0);
-        setPage('landing');
+      } catch (err: any) {
+        console.error("Error in auth state change:", err);
+        toast('err', err.message || 'Authentication error');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [page, toast]);
 
   // Real-time Data Sync
   useEffect(() => {
@@ -185,11 +203,30 @@ export default function App() {
       return;
     }
     try {
-      await signInWithEmailAndPassword(auth, loginEmail, loginPass);
+      const email = loginEmail.trim();
+      const pass = loginPass.trim();
+      console.log("Attempting login for email:", email);
+      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      console.log("Login successful for UID:", userCredential.user.uid);
       closeModal('authM');
       toast('ok', `Welcome back!`);
     } catch (err: any) {
-      toast('err', err.message || 'Login failed');
+      console.error("Login error details:", {
+        code: err.code,
+        message: err.message,
+        email: loginEmail.trim()
+      });
+      let msg = 'Login failed';
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        msg = 'Invalid email or password.';
+      } else if (err.code === 'auth/invalid-email') {
+        msg = 'Invalid email address format.';
+      } else if (err.code === 'auth/too-many-requests') {
+        msg = 'Too many failed attempts. Please try again later.';
+      } else if (err.message) {
+        msg = err.message;
+      }
+      toast('err', msg);
     }
   };
 
@@ -205,14 +242,18 @@ export default function App() {
     }
 
     try {
+      const email = regData.email.trim();
+      const pw = regData.pw.trim();
+      console.log("Attempting registration for email:", email);
       const res = await createUserWithEmailAndPassword(auth, email, pw);
+      console.log("Auth user created successfully:", res.user.uid);
       const newUser: Player = {
         id: res.user.uid,
-        username,
+        username: regData.username.trim(),
         email,
         password: '', // Don't store plain text
-        gameId: gid,
-        phone,
+        gameId: regData.gid.trim(),
+        phone: regData.phone.trim(),
         wallet: 0,
         earnings: 0,
         wins: 0,
@@ -221,15 +262,33 @@ export default function App() {
         role: 'user'
       };
       const path = `users/${res.user.uid}`;
+      console.log("Saving user profile to Firestore at:", path);
       try {
         await setDoc(doc(db, 'users', res.user.uid), newUser);
-      } catch (e) {
-        handleFirestoreError(e, OperationType.WRITE, path);
+        console.log("User profile saved successfully");
+        toast('ok', `Account created! Welcome ${newUser.username}`);
+        closeModal('authM');
+      } catch (fsErr: any) {
+        console.error("Firestore profile save error:", fsErr);
+        toast('err', 'Auth succeeded but profile creation failed. Please contact support.');
       }
-      toast('ok', 'Account created!');
-      closeModal('authM');
     } catch (err: any) {
-      toast('err', err.message || 'Registration failed');
+      console.error("Registration error details:", {
+        code: err.code,
+        message: err.message,
+        email: regData.email.trim()
+      });
+      let msg = 'Registration failed';
+      if (err.code === 'auth/email-already-in-use') {
+        msg = 'This email is already registered. Please login instead.';
+      } else if (err.code === 'auth/weak-password') {
+        msg = 'Password is too weak (min 6 characters).';
+      } else if (err.code === 'auth/invalid-email') {
+        msg = 'Invalid email address format.';
+      } else if (err.message) {
+        msg = err.message;
+      }
+      toast('err', msg);
     }
   };
 

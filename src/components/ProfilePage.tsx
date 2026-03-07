@@ -67,8 +67,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, joinedTournament
             joinedTournaments.map(t => (
               <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid rgba(255,255,255,.04)', cursor: 'pointer' }} onClick={() => onViewTournament(t.id)}>
                 <div>
-                  <div style={{ fontFamily: "'Anton', sans-serif", fontSize: '15px', letterSpacing: '.5px' }}>{t.name}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9px', color: 'var(--dim3)', marginTop: '2px' }}>{t.game} · {t.startDate}</div>
+                  <div style={{ fontFamily: "'Anton', sans-serif", fontSize: '15px', letterSpacing: '.5px' }}>{t.title}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9px', color: 'var(--dim3)', marginTop: '2px' }}>{t.game} · {t.time}</div>
                 </div>
                 <span className={`tc-st ${t.status}`}>{t.status.toUpperCase()}</span>
               </div>
